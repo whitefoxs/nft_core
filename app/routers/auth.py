@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import sha256
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -75,7 +75,7 @@ def sign_up(req: SignUpRequest, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     # Create genesis block
-    timestamp_str = datetime.utcnow().isoformat()
+    timestamp_str = datetime.now(timezone.utc).isoformat()
     raw_string = f"{new_user.id}{timestamp_str}GENESIS"
     raw_hash = sha256(raw_string.encode("utf-8")).hexdigest()
 
