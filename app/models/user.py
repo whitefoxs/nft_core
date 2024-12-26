@@ -1,7 +1,9 @@
 # app/models/user.py
 
 from sqlalchemy import Column, Integer, String
+
 from app.database import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -11,8 +13,10 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     bip39_mnemonic = Column(String, nullable=False)
 
-    # Optional fields for demonstration or expansion
-    # e.g., handle creation of wallet address, private key, etc.
+    # Add these columns:
+    private_key_hex = Column(String, nullable=True)
+    public_key_hex = Column(String, nullable=True)
+    wallet_address = Column(String, nullable=True)
 
     def __repr__(self):
         return f"<User id={self.id}, email={self.email}>"
