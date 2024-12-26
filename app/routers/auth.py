@@ -1,5 +1,3 @@
-# app/routers/auth.py
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -12,7 +10,6 @@ from app.core.bip39_utils import generate_bip39_mnemonic
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-# Dependency to get DB session
 def get_db():
     db = SessionLocal()
     try:
@@ -42,18 +39,8 @@ class SignInResponse(BaseModel):
     email: str
 
 
-class RecoverPasswordRequest(BaseModel):
-    email: str
-    mnemonic_words: list[str]
-
-
-class RecoverPasswordResponse(BaseModel):
-    message: str
-
-
 @router.post("/signup", response_model=SignUpResponse)
 def sign_up(req: SignUpRequest, db: Session = Depends(get_db)):
-    # Check if email is already in use
     existing_user = db.query(User).filter(User.email == req.email).first()
     if existing_user:
         raise HTTPException(
@@ -65,7 +52,6 @@ def sign_up(req: SignUpRequest, db: Session = Depends(get_db)):
     mnemonic = generate_bip39_mnemonic()
     hashed_pw = hash_password(req.password)
 
-    # Create user object
     new_user = User(
         email=req.email,
         password_hash=hashed_pw,
@@ -75,7 +61,11 @@ def sign_up(req: SignUpRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return SignUpResponse(email=new_user.email, bip39_mnemonic=new_user.bip39_mnemonic)
+    # Cast to str to satisfy type checker
+    return SignUpResponse(
+        email=str(new_user.email),
+        bip39_mnemonic=str(new_user.bip39_mnemonic)
+    )
 
 
 @router.post("/signin", response_model=SignInResponse)
@@ -86,30 +76,28 @@ def sign_in(req: SignInRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found."
         )
-    # Verify password
-    if not verify_password(req.password, user.password_hash):
+
+    # Cast user.password_hash to str to avoid type checker warning
+    if not verify_password(req.password, str(user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect password."
         )
-    return SignInResponse(message="Sign-in successful", email=user.email)
+
+    # Cast to str to satisfy type checker
+    return SignInResponse(message="Sign-in successful", email=str(user.email))
 
 
-@router.post("/recover-password", response_model=RecoverPasswordResponse)
-def recover_password(req: RecoverPasswordRequest, db: Session = Depends(get_db)):
-    """
-    Endpoint to recover a user's password by validating mnemonic words.
-    """
-    # Check if user exists
-    user = db.query(User).filter(User.email == req.email).first()
+@router.post("/recover-password")
+def recover_password(email: str, mnemonic_words: list[str], db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Validate mnemonic words
     stored_words = user.bip39_mnemonic.split()
-    matches = all(word in stored_words for word in req.mnemonic_words)
+    matches = all(word in stored_words for word in mnemonic_words)
 
     if not matches:
         raise HTTPException(status_code=401, detail="Mnemonic words mismatch")
 
-    return RecoverPasswordResponse(message="Mnemonic validated. Proceed with password reset.")
+    return {"message": "Mnemonic validated. Proceed with password reset."}
