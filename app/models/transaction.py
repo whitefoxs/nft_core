@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import Base
 
@@ -13,7 +13,8 @@ class Transaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     tx_type = Column(String, nullable=False)
     tx_details = Column(Text, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    # Use a lambda so it's called at runtime
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     block = relationship("Block", backref="transactions")
 

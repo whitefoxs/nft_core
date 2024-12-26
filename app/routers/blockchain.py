@@ -1,14 +1,13 @@
-# app/routers/blockchain.py
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+from pydantic import BaseModel
+from typing import cast
 
 from app.database import SessionLocal
 from app.models.user import User
 from app.models.block import Block
 from app.core.blockchain_utils import validate_user_chain
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/blockchain", tags=["Blockchain"])
 
@@ -27,7 +26,8 @@ def validate_chain(email: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    is_valid = validate_user_chain(db, user.id)
+    # Use cast if needed, though user.id is typically an int:
+    is_valid = validate_user_chain(db, cast(int, user.id))
     return {"user": email, "chain_valid": is_valid}
 
 
@@ -55,7 +55,7 @@ def get_user_chain(email: str, db: Session = Depends(get_db)):
     result = []
     for b in blocks:
         result.append(BlockSchema(
-            id=b.id,
+            id=cast(int, b.id),
             block_hash=str(b.block_hash),
             prev_hash=str(b.prev_hash) if b.prev_hash else None,
             data=str(b.data) if b.data else None,

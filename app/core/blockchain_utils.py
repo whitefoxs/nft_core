@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from hashlib import sha256
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.block import Block
 
@@ -19,7 +19,9 @@ def compute_block_hash(raw_string: str) -> str:
 
 
 def create_block(db: Session, user_id: int, prev_hash: str, data: str) -> Block:
-    timestamp_str = datetime.utcnow().isoformat()
+    # Use a timezone-aware datetime
+    timestamp_str = datetime.now(timezone.utc).isoformat()
+
     raw_string = f"{user_id}{timestamp_str}{prev_hash}{data}"
     new_block_hash = compute_block_hash(raw_string)
 
@@ -43,16 +45,15 @@ def validate_user_chain(db: Session, user_id: int) -> bool:
         .all()
     )
     if not blocks:
-        return True  # no blocks means trivially "valid"
+        return True
 
     for i in range(1, len(blocks)):
         prev_block = blocks[i - 1]
         current_block = blocks[i]
-        # Check if link is correct
+        # Link check
         if current_block.prev_hash != prev_block.block_hash:
             return False
 
-        # Re-compute hash
         block_ts_str = current_block.timestamp.isoformat()
         raw_string = f"{current_block.user_id}{block_ts_str}{current_block.prev_hash}{current_block.data}"
         if compute_block_hash(raw_string) != current_block.block_hash:
